@@ -1,0 +1,33 @@
+--- a/ext/session/session.c	2026-10-23 03:44:23.441561002 +0000
++++ b/ext/session/session.c	2026-10-23 03:44:23.544198290 +0000
+@@ -117,6 +117,30 @@
+ 		efree(PS(id));
+ 		PS(id) = NULL;
+ 	}
++
++	/* CVE-2026-109619: reset fields that are read by the upload-progress callback
++	 * (php_session_rfc1867_callback) before RINIT resets them.  Without this,
++	 * a request that dies mid-flight (fatal error, timeout, OOM) leaves stale
++	 * pointers that the next request on the same worker can use-after-free.
++	 *
++	 * session_status / mod_user_is_open: read by php_session_initialize() via
++	 *   the upload-progress path (called from php_hash_environment, before RINIT).
++	 *
++	 * rfc1867_progress: if the previous request died between MULTIPART_EVENT_START
++	 *   and MULTIPART_EVENT_END the pointer is never set to NULL.  The next request
++	 *   picks it up as its local `progress` variable and passes it to every event
++	 *   handler, causing an immediate use-after-free on the freed ecalloc block. */
++	PS(session_status)    = php_session_none;
++	PS(mod_user_is_open)  = 0;
++	if (PS(rfc1867_progress)) {
++		/* The struct may contain live zvals (sid, data, files …) only when
++		 * a request completed the full upload cycle.  A request that died
++		 * early leaves an ecalloc'd block where those pointers are either
++		 * NULL or already freed by the allocator shutdown.  We must not
++		 * call zval_ptr_dtor here; just discard the pointer so START on
++		 * the next request allocates a fresh block. */
++		PS(rfc1867_progress) = NULL;
++	}
+ }
+ /* }}} */
+ 
