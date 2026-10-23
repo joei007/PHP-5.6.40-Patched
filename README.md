@@ -5,3 +5,8 @@ Patch ตัวนี้จะเปลี่ยนจาก longjmp ไปเ�
 
 ## CVE-2026-109619
 Patch ตัวนี้จะ Clear ค่าที่เกี่ยวกับ Session ที่ไม่ได้ Clear ก่อนเริ่ม Request รอบใหม่ ซึ่งมันกันในส่วนของผมได้ แต่ถ้าส่วนของคุณมี Mod อะไรที่จะต้อง Clear ค่าก่อนจบ Process หรือมีการใช้ PHP_VALUE หรือ PHP_ADMIN_VALUE หรือ มีการใช้ Web Socket ในการเชื่อมต่อ PHP-FPM แทน Unix Socket ก็อาจจะยังมีความเสี่ยงอยู่
+
+## ข้อแนะนำเพิ่มเติม
+- ปิด Upload Progress ผ่าน php.ini โดยการเพิ่ม session.upload_progress.enabled=0
+- จำกัดขนาด Request ที่ Apache โดยการเพิ่ม LimitRequestBody 20971520 (20MB)
+- ลด pm.max_requests ใน php-fpm.conf ลดให้เหลือ 1 เลยก็ได้ ของผมตั้งไว้ที่ 100
