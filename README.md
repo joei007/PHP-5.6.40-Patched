@@ -13,3 +13,14 @@ Patch นี้จะมี 2 ไฟล์ โดย Patch แรกนี้จ
 - จำกัดขนาด Request ที่ Apache โดยการเพิ่ม LimitRequestBody 20971520 (20MB)
 - ลด pm.max_requests ใน php-fpm.conf ลดให้เหลือ 1 เลยก็ได้ ของผมตั้งไว้ที่ 100
 - หลังจาก Patch แล้วจะเจอว่า Child Process ของ PHP-FPM ตายเป็นระยะ ซึ่งเป็นเรื่องปกติ
+
+## ตัวอย่างข้อความ PHP-FPM Log
+
+```Logs CVE-2026-109619
+[24-Oct-2026 21:09:43] WARNING: [pool] child 8283 said into stderr: "WARNING: worker exits after a request that ended with a fatal error"
+```
+
+```Logs CVE-2026-109618
+[23-Oct-2026 19:34:18] WARNING: [pool] child 14964 said into stderr: "Fatal error: Allowed memory size of 268435456 bytes exhausted (tried to allocate 74 bytes) in Unknown on line 0"
+[23-Oct-2026 19:34:18] WARNING: [pool] child 14964 exited with code 1 after 189.553720 seconds from start
+```
