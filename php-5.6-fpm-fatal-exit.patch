@@ -1,0 +1,40 @@
+diff -ruN a/sapi/fpm/fpm/fpm_main.c b/sapi/fpm/fpm/fpm_main.c
+--- a/sapi/fpm/fpm/fpm_main.c	2026-10-24 09:07:25.129218770 +0000
++++ b/sapi/fpm/fpm/fpm_main.c	2026-10-24 09:07:25.175152271 +0000
+@@ -1613,6 +1613,7 @@
+ 
+ 	int max_requests = 500;
+ 	int requests = 0;
++	int worker_tainted = 0;
+ 	int fcgi_fd = 0;
+ 	fcgi_request request;
+ 	char *fpm_config = NULL;
+@@ -2014,10 +2015,27 @@
+ 			STR_FREE(SG(request_info).path_translated);
+ 			SG(request_info).path_translated = NULL;
+ 
++			/* CVE-2026-109619 hardening: a request that ended with a fatal error can leave
++			 * stale global state behind, so this worker must not serve another request.
++			 * exit_status is 255 after E_ERROR, E_PARSE, E_COMPILE_ERROR, E_USER_ERROR,
++			 * E_RECOVERABLE_ERROR (including timeouts and failed require/include).
++			 * A plain exit()/die() does not set it, so those requests keep their worker. */
++			if (EG(exit_status) == 255) {
++				worker_tainted = 1;
++			}
++
+ 			php_request_shutdown((void *) 0);
+ 
++			/* fatal errors raised by shutdown functions or destructors */
++			if (EG(exit_status) == 255) {
++				worker_tainted = 1;
++			}
++
+ 			requests++;
+-			if (max_requests && (requests == max_requests)) {
++			if (worker_tainted) {
++				zlog(ZLOG_WARNING, "worker exits after a request that ended with a fatal error");
++			}
++			if (worker_tainted || (max_requests && (requests == max_requests))) {
+ 				fcgi_finish_request(&request, 1);
+ 				break;
+ 			}
